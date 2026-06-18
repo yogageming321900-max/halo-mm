@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoScan - Real AI Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #0d9488 50%, #111827 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        /* ========================================================
+           STYLE LOGIN & REGISTRASI
+           ======================================================== */
+        .auth-body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            position: relative;
+        }
+
+        .auth-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            padding: 40px 35px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 420px;
+            z-index: 2;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .auth-container h2 {
+            text-align: center;
+            margin-bottom: 8px;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 26px;
+        }
+
+        .auth-subtitle {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            font-size: 15px;
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.07);
+        }
+
+        .form-group input:focus {
+            border-color: #10b981;
+            outline: none;
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-auth {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #0d9488 0%, #10b981 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+
+        .toggle-link {
+            text-align: center;
+            margin-top: 25px;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .toggle-link a {
+            color: #10b981;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .message {
+            text-align: center;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            display: none;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .error { background-color: rgba(220, 38, 38, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
+        .success { background-color: rgba(16, 185, 129, 0.2); color: #a7f3d0; border: 1px solid #10b981; }
+
+        /* ========================================================
+           STYLE: DASHBOARD LAYOUT
+           ======================================================== */
+        .dashboard-layout {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 270px;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 40px 20px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 50px;
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .sidebar-brand span { color: #10b981; }
+
+        .sidebar menu { list-style: none; }
+
+        .sidebar menu li {
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            border-radius: 14px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar menu li.active, .sidebar menu li:hover {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border-left: 4px solid #10b981;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 35px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 25px;
+        }
+
+        .header h1 { font-size: 30px; font-weight: 800; }
+        .header p { color: #94a3b8; font-size: 14px; }
+
+        .header-nav { display: flex; align-items: center; gap: 15px; }
+
+        .user-badge {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+        }
+        .user-badge span { color: #10b981; font-weight: 700; }
+
+        .btn-logout {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            margin-bottom: 35px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            padding: 24px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .card h3 { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 15px; }
+        .card .count { font-size: 42px; font-weight: 800; }
+        .card.total { border-top: 4px solid #3b82f6; }
+        .card.total .count { color: #60a5fa; }
+        .card.organik { border-top: 4px solid #10b981; }
+        .card.organik .count { color: #34d399; }
+        .card.anorganik { border-top: 4px solid #f59e0b; }
+        .card.anorganik .count { color: #fbbf24; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 35px;
+            margin-bottom: 35px;
+        }
+
+        @media (max-width: 1100px) { .workspace { grid-template-columns: 1fr; } }
+
+        .box {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 30px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .box h2 { font-size: 18px; margin-bottom: 22px; }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            background: #090d16;
+            border-radius: 18px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        video { width: 100%; height: 100%; object-fit: cover; }
+
+        .scan-overlay {
+            position: absolute;
+            top: 10%; left: 10%; right: 10%; bottom: 10%;
+            border: 3px dashed #10b981;
+            border-radius: 16px;
+            pointer-events: none;
+        }
+
+        .btn-scan {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #0d9488 0%, #10b981 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 24px;
+        }
+
+        .btn-scan:disabled {
+            background: #334155;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .detection-result {
+            margin-top: 20px;
+            font-weight: 600;
+            font-size: 15px;
+            text-align: center;
+            color: #cbd5e1;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+        }
+
+        /* ========================================================
+           STYLE SEKSI RIWAYAT
+           ======================================================== */
+        .history-tabs {
+            display: flex; gap: 10px; margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px; border-radius: 14px; display: inline-flex;
+        }
+
+        .tab-btn {
+            background: transparent; border: none; color: #94a3b8;
+            padding: 8px 20px; font-weight: 600; font-size: 14px;
+            border-radius: 10px; cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #0d9488 0%, #10b981 100%);
+            color: white;
+        }
+
+        .table-responsive { width: 100%; overflow-x: auto; }
+        .history-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        .history-table th { background: rgba(15, 23, 42, 0.4); color: #cbd5e1; padding: 14px 18px; }
+        .history-table td { padding: 14px 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+        .badge-organik { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .badge-anorganik { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .empty-row { text-align: center; color: #64748b; padding: 30px !important; font-style: italic; }
+    </style>
+</head>
+
+<body>
+
+    <div id="authPage" class="auth-body">
+        <div class="auth-container">
+            <div id="messageBox" class="message"></div>
+
+            <div id="loginForm">
+                <h2>Selamat Datang</h2>
+                <div class="auth-subtitle">Masuk untuk memantau sistem pengelolaan sampah</div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUser" placeholder="Masukkan nama pengguna...">
+                </div>
+                <div class="form-group">
+                    <label>Kata Sandi</label>
+                    <input type="password" id="loginPass" placeholder="Masukkan kata sandi...">
+                </div>
+                <button class="btn-auth" onclick="prosesLogin()">Masuk Sekarang</button>
+                <div class="toggle-link">
+                    Belum punya akun? <a onclick="tampilkanForm('register')">Buat Akun Baru</a>
+                </div>
+            </div>
+
+            <div id="registerForm" style="display: none;">
+                <h2>Daftar Akun</h2>
+                <div class="auth-subtitle">Buat akun untuk memulai pemilahan berbasis AI</div>
+                <div class="form-group">
+                    <label>Username Baru</label>
+                    <input type="text" id="regUser" placeholder="Tentukan nama pengguna...">
+                </div>
+                <div class="form-group">
+                    <label>Kata Sandi</label>
+                    <input type="password" id="regPass" placeholder="Buat kata sandi aman...">
+                </div>
+                <button class="btn-auth" onclick="prosesRegistrasi()">Daftar Akun</button>
+                <div class="toggle-link">
+                    Sudah memiliki akun? <a onclick="tampilkanForm('login')">Login di sini</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboardPage" class="dashboard-layout">
+        <div class="sidebar">
+            <div class="sidebar-brand"><span>Eco</span>Scan</div>
+            <menu>
+                <li id="menuDashboard" class="active" onclick="gantiHalamanApp('dashboard')">Dashboard Utama</li>
+                <li id="menuRiwayat" onclick="gantiHalamanApp('riwayat')">Riwayat Pemindaian</li>
+            </menu>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <div>
+                    <h1 id="pageTitle">Dashboard Pemantauan</h1>
+                    <p id="pageSubtitle">Sistem Pemilah Sampah Pintar Berbasis Visi Komputer</p>
+                </div>
+                <div class="header-nav">
+                    <div class="user-badge">Petugas: <span id="userAktif">User</span></div>
+                    <button class="btn-logout" onclick="prosesLogout()">Logout</button>
+                </div>
+            </div>
+
+            <div id="viewDashboard">
+                <div class="stats-grid">
+                    <div class="card total"><h3>Total Terhitung</h3><div class="count" id="totalCount">0</div></div>
+                    <div class="card organik"><h3>Sampah Organik</h3><div class="count" id="organikCount">0</div></div>
+                    <div class="card anorganik"><h3>Sampah Anorganik</h3><div class="count" id="anorganikCount">0</div></div>
+                </div>
+
+                <div class="workspace">
+                    <div class="box">
+                        <h2>Kamera Deteksi Real-Time (True AI)</h2>
+                        <div class="camera-container">
+                            <video id="webcam" autoplay playsinline></video>
+                            <div class="scan-overlay"></div>
+                        </div>
+                        <button class="btn-scan" id="scanBtn" disabled onclick="mulaiDeteksiSampahAsli()">Memuat Model AI...</button>
+                        <div class="detection-result" id="resultLabel">Menunggu AI siap memindai objek sampah...</div>
+                    </div>
+
+                    <div class="box">
+                        <h2>Komposisi Jenis Sampah (%)</h2>
+                        <div style="position: relative; height:320px; width:100%">
+                            <canvas id="wasteChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="viewRiwayat" style="display: none;">
+                <div class="box">
+                    <h2>Riwayat Log Aktivitas Pemindaian</h2>
+                    <div class="history-tabs">
+                        <button class="tab-btn active" onclick="gantiFilterRiwayat('hari', this)">Hari Ini</button>
+                        <button class="tab-btn" onclick="gantiFilterRiwayat('minggu', this)">Minggu Ini</button>
+                        <button class="tab-btn" onclick="gantiFilterRiwayat('bulan', this)">Bulan Ini</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Waktu Pemindaian</th>
+                                    <th>Kandungan Bahan</th>
+                                    <th>Kategori Sistem</th>
+                                    <th>Akurasi AI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr><td colspan="5" class="empty-row">Belum ada riwayat pemindaian pada periode ini.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messageBox = document.getElementById('messageBox');
+        let modelAI = null;
+
+        // Kamus Pemetaan Kata Kunci yang Diperketat & Akurat (Mapping Dictionary)
+        const DIKTI_AI_MAPPING = {
+            // GRUP ORGANIK (Bahan Alam, Makanan, Makhluk Hidup)
+            'banana': { indo: 'Kulit Pisang', kat: 'organik' },
+            'apple': { indo: 'Buah Apel', kat: 'organik' },
+            'orange': { indo: 'Jeruk / Kulit Jeruk', kat: 'organik' },
+            'lemon': { indo: 'Buah Lemon', kat: 'organik' },
+            'fig': { indo: 'Buah/Sisa Makanan', kat: 'organik' },
+            'pineapple': { indo: 'Kulit Nanas', kat: 'organik' },
+            'pomegranate': { indo: 'Sisa Buah', kat: 'organik' },
+            'jackfruit': { indo: 'Sisa Nangka', kat: 'organik' },
+            'corn': { indo: 'Tongkol Jagung', kat: 'organik' },
+            'acorn': { indo: 'Biji-bijian Alam', kat: 'organik' },
+            'cucumber': { indo: 'Potongan Mentimun', kat: 'organik' },
+            'broccoli': { indo: 'Sisa Sayuran', kat: 'organik' },
+            'cabbage': { indo: 'Daun Kubis', kat: 'organik' },
+            'zucchini': { indo: 'Sayuran Busuk', kat: 'organik' },
+            'potato': { indo: 'Kulit Kentang', kat: 'organik' },
+            'head cabbage': { indo: 'Sisa Sayur', kat: 'organik' },
+            'mushroom': { indo: 'Jamur Liar', kat: 'organik' },
+            'meat': { indo: 'Sisa Daging', kat: 'organik' },
+            'bread': { indo: 'Roti Kedaluwarsa', kat: 'organik' },
+            'potpie': { indo: 'Sisa Makanan', kat: 'organik' },
+            'carbonara': { indo: 'Limbah Dapur Domestik', kat: 'organik' },
+            'leaf': { indo: 'Dedaunan Kering', kat: 'organik' },
+            'wood': { indo: 'Patahan Kayu', kat: 'organik' },
+            'tree': { indo: 'Ranting Pohon', kat: 'organik' },
+
+            // GRUP ANORGANIK (Manufaktur, Plastik, Logam, Kaca, Kertas)
+            'water bottle': { indo: 'Botol Plastik Pet', kat: 'anorganik' },
+            'pill bottle': { indo: 'Botol Obat Plastik', kat: 'anorganik' },
+            'wine bottle': { indo: 'Botol Kaca/Beling', kat: 'anorganik' },
+            'beer bottle': { indo: 'Botol Kaca', kat: 'anorganik' },
+            'pop bottle': { indo: 'Botol Minuman Ringan', kat: 'anorganik' },
+            'plastic': { indo: 'Kemasan Plastik', kat: 'anorganik' },
+            'packet': { indo: 'Bungkus Sachet Snack', kat: 'anorganik' },
+            'cup': { indo: 'Gelas Plastik/Stering', kat: 'anorganik' },
+            'can': { indo: 'Kaleng Minuman Logam', kat: 'anorganik' },
+            'tincan': { indo: 'Kaleng Seng Bekas', kat: 'anorganik' },
+            'box': { indo: 'Kotak Kardus', kat: 'anorganik' },
+            'cardboard': { indo: 'Kardus / Karton Pack', kat: 'anorganik' },
+            'carton': { indo: 'Kotak Susu / Tetrapack', kat: 'anorganik' },
+            'envelope': { indo: 'Sampah Kertas', kat: 'anorganik' },
+            'paper': { indo: 'Lembaran Kertas Bekas', kat: 'anorganik' },
+            'newspaper': { indo: 'Koran Bekas', kat: 'anorganik' },
+            'magazine': { indo: 'Buku/Majalah Rusak', kat: 'anorganik' },
+            'bag': { indo: 'Kantong Plastik / Kresek', kat: 'anorganik' },
+            'shopping bag': { indo: 'Tas Belanja Plastik', kat: 'anorganik' },
+            'wrapper': { indo: 'Plastik Pembungkus', kat: 'anorganik' },
+            'cellphone': { indo: 'Limbah Elektronik (E-Waste)', kat: 'anorganik' },
+            'mouse': { indo: 'Komponen Elektronik Rusak', kat: 'anorganik' },
+            'keyboard': { indo: 'Sampah Plastik Keras', kat: 'anorganik' },
+            'sandal': { indo: 'Sandal Karet Bekas', kat: 'anorganik' },
+            'shoe': { indo: 'Sepatu Kain Rusak', kat: 'anorganik' },
+            'glass': { indo: 'Pecahan Kaca Beling', kat: 'anorganik' }
+        };
+
+        // Load Model TensorFlow MobileNet
+        async function loadModelAI() {
+            try {
+                modelAI = await mobilenet.load();
+                const scanBtn = document.getElementById('scanBtn');
+                scanBtn.innerText = "Mulai Pindai Objek";
+                scanBtn.disabled = false;
+                document.getElementById('resultLabel').innerText = "Sistem AI Berhasil Dikalibrasi! Dekatkan objek sampah.";
+            } catch (error) {
+                console.error(error);
+                document.getElementById('resultLabel').innerText = "Gagal memuat AI core.";
+            }
+        }
+
+        loadModelAI();
+
+        function tampilkanPesan(teks, tipe) {
+            messageBox.innerText = teks; messageBox.className = `message ${tipe}`; messageBox.style.display = 'block';
+        }
+
+        function tampilkanForm(menu) {
+            messageBox.style.display = 'none';
+            document.getElementById('loginForm').style.display = menu === 'register' ? 'none' : 'block';
+            document.getElementById('registerForm').style.display = menu === 'register' ? 'block' : 'none';
+        }
+
+        function prosesRegistrasi() {
+            const u = document.getElementById('regUser').value.trim();
+            const p = document.getElementById('regPass').value.trim();
+            if (!u || !p) return tampilkanPesan("Semua bidang wajib diisi!", "error");
+
+            let users = JSON.parse(localStorage.getItem('users')) || [];
+            if (users.find(user => user.username === u)) return tampilkanPesan("Username sudah terdaftar!", "error");
+
+            users.push({ username: u, password: p });
+            localStorage.setItem('users', JSON.stringify(users));
+            tampilkanPesan("Pendaftaran Berhasil!", "success");
+            setTimeout(() => tampilkanForm('login'), 1500);
+        }
+
+        function prosesLogin() {
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value.trim();
+            let users = JSON.parse(localStorage.getItem('users')) || [];
+            
+            if (users.find(user => user.username === u && user.password === p)) {
+                tampilkanPesan("Akses diberikan!", "success");
+                setTimeout(() => bukaDashboard(u), 1000);
+            } else {
+                tampilkanPesan("Username atau password salah!", "error");
+            }
+        }
+
+        let listRiwayatScan = [];
+        let filterAktif = 'hari';
+        let wasteChart;
+        let videoStream = null;
+
+        function gantiHalamanApp(target) {
+            document.getElementById('viewDashboard').style.display = target === 'dashboard' ? 'block' : 'none';
+            document.getElementById('viewRiwayat').style.display = target === 'riwayat' ? 'block' : 'none';
+            document.getElementById('menuDashboard').className = target === 'dashboard' ? 'active' : '';
+            document.getElementById('menuRiwayat').className = target === 'riwayat' ? 'active' : '';
+            if (target === 'riwayat') renderRiwayatTable();
+        }
+
+        function bukaDashboard(username) {
+            document.getElementById('authPage').style.display = 'none';
+            document.getElementById('dashboardPage').style.display = 'flex';
+            document.getElementById('userAktif').innerText = username;
+            aktifkanKamera();
+            inisialisasiGrafik();
+            tarikDataDariDatabase();
+        }
+
+        function aktifkanKamera() {
+            const video = document.getElementById('webcam');
+            if (navigator.mediaDevices?.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+                    .then(stream => { videoStream = stream; video.srcObject = stream; })
+                    .catch(() => console.log("Kamera tidak diakses."));
+            }
+        }
+
+        function inisialisasiGrafik() {
+            const ctx = document.getElementById('wasteChart').getContext('2d');
+            if (wasteChart) wasteChart.destroy();
+            wasteChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Organik', 'Anorganik'],
+                    datasets: [{ data: [0, 0], backgroundColor: ['#34d399', '#fbbf24'], borderWidth: 2 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '72%' }
+            });
+        }
+
+        /* PERBAIKAN TOTAL: PROSES NORMALISASI KATEGORI AGAR KONSISTEN */
+        async function mulaiDeteksiSampahAsli() {
+            if (!modelAI) return;
+            const video = document.getElementById('webcam');
+            const resultLabel = document.getElementById('resultLabel');
+            
+            resultLabel.innerHTML = "<span style='color: #34d399;'>⌛ Menstabilkan fokus lensa & klasifikasi material...</span>";
+
+            try {
+                // Mengambil hasil prediksi gambar mentah
+                const prediksi = await modelAI.classify(video);
+                
+                if (prediksi && prediksi.length > 0) {
+                    let terpilih = null;
+                    let bendaindo = "Objek Tidak Dikenal";
+                    let kategori = "anorganik"; // Default pengaman fallback
+
+                    console.log("Raw Real AI Log Prediksi:", prediksi);
+
+                    // LOOPING UNTUK MENCOCOKKAN HASIL REAL DENGAN KAMUS ANCHOR KITA
+                    // Langkah ini memastikan meskipun hasil pertama melesat, sistem akan mencari kecocokan stabil di baris ke-2 atau ke-3
+                    for (let i = 0; i < prediksi.length; i++) {
+                        let labelMentah = prediksi[i].className.toLowerCase();
+                        
+                        // Cari apakah ada kata kunci di kamus kita yang terkandung di dalam teks prediksi AI
+                        let keywordCocok = Object.keys(DIKTI_AI_MAPPING).find(key => labelMentah.includes(key));
+                        
+                        if (keywordCocok) {
+                            terpilih = prediksi[i];
+                            bendaindo = DIKTI_AI_MAPPING[keywordCocok].indo;
+                            kategori = DIKTI_AI_MAPPING[keywordCocok].kat;
+                            break; // Stop jika sudah mendapatkan kepastian material stabil
+                        }
+                    }
+
+                    // Jika dari 3 alternatif prediksi tidak ada yang masuk kamus sampah, lakukan fallback terstruktur
+                    if (!terpilih) {
+                        let topHasil = prediksi[0].className.toLowerCase();
+                        bendaindo = prediksi[0].className.split(',')[0];
+                        
+                        // Fallback pintar sederhana berdasarkan akhiran nama benda umum
+                        if (topHasil.includes('fruit') || topHasil.includes('food') || topHasil.includes('organic')) {
+                            kategori = 'organik';
+                        } else {
+                            kategori = 'anorganik';
+                        }
+                    }
+
+                    // Rumus kalkulasi akurasi berbasis probabilitas model neural
+                    const akurasiSkor = (prediksi[0].probability * 100).toFixed(1) + "%";
+
+                    // Render teks indikator visual ke user
+                    if (kategori === 'organik') {
+                        resultLabel.innerHTML = `Terdeteksi: <strong style='color: #34d399;'>${bendaindo} -> Kategori Organik</strong>`;
+                    } else {
+                        resultLabel.innerHTML = `Terdeteksi: <strong style='color: #fbbf24;'>${bendaindo} -> Kategori Anorganik</strong>`;
+                    }
+
+                    // Tampilkan Instan ke Grafik & State RAM Browser
+                    const waktuSekarang = new Date();
+                    listRiwayatScan.push({
+                        timestamp: waktuSekarang,
+                        bahanBenda: bendaindo,
+                        kategoriRaw: kategori,
+                        labelKategori: kategori === 'organik' ? "Organik" : "Anorganik",
+                        classBadge: kategori === 'organik' ? "badge-organik" : "badge-anorganik",
+                        akurasi: akurasiSkor
+                    });
+
+                    updateDashboard();
+
+                    // Sinkronisasi permanen ke server database lokal MySQL
+                    let dataKirim = new FormData();
+                    dataKirim.append('benda_nama', bendaindo);
+                    dataKirim.append('bahan', kategori === 'organik' ? 'Alami / Organik' : 'Sintetis / Anorganik');
+                    dataKirim.append('kategori', kategori);
+                    dataKirim.append('akurasi', akurasiSkor);
+
+                    fetch('simpan_scan.php', { method: 'POST', body: dataKirim })
+                        .catch(err => console.error("Gagal simpan ke MySQL:", err));
+
+                } else {
+                    resultLabel.innerText = "Objek tidak tertangkap kamera dengan jelas.";
+                }
+            } catch (err) {
+                console.error(err);
+                resultLabel.innerText = "Terjadi gangguan saat memindai frame gambar.";
+            }
+        }
+
+        function tarikDataDariDatabase() {
+            fetch('simpan_scan.php')
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success' && res.data) {
+                        listRiwayatScan = [];
+                        res.data.forEach(item => {
+                            listRiwayatScan.push({
+                                timestamp: new Date(item.timestamp.replace(/-/g, "/")),
+                                bahanBenda: item.benda_nama,
+                                kategoriRaw: item.kategori,
+                                labelKategori: item.kategori === 'organik' ? "Organik" : "Anorganik",
+                                classBadge: item.kategori === 'organik' ? "badge-organik" : "badge-anorganik",
+                                akurasi: item.akurasi
+                            });
+                        });
+                        updateDashboard();
+                    }
+                });
+        }
+
+        function updateDashboard() {
+            let o = 0, an = 0;
+            listRiwayatScan.forEach(i => { if (i.kategoriRaw === 'organik') o++; if (i.kategoriRaw === 'anorganik') an++; });
+            document.getElementById('totalCount').innerText = o + an;
+            document.getElementById('organikCount').innerText = o;
+            document.getElementById('anorganikCount').innerText = an;
+            if (wasteChart) { wasteChart.data.datasets[0].data = [o, an]; wasteChart.update(); }
+        }
+
+        function dapatkanDataSesuaiFilter(f) {
+            const sekarang = new Date();
+            const hariIniMulai = new Date(sekarang.getFullYear(), sekarang.getMonth(), rollers = sekarang.getDate());
+            return listRiwayatScan.filter(item => {
+                const d = new Date(item.timestamp);
+                const diff = (sekarang - d) / (1000 * 60 * 60 * 24);
+                if (f === 'hari') return d >= hariIniMulai;
+                if (f === 'minggu') return diff <= 7;
+                if (f === 'bulan') return diff <= 30;
+                return true;
+            });
+        }
+
+        function renderRiwayatTable() {
+            const tbody = document.getElementById('historyTableBody');
+            const data = dapatkanDataSesuaiFilter(filterAktif);
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-row">Belum ada riwayat pemindaian pada periode ini.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = "";
+            [...data].reverse().forEach((item, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${data.length - index}</td>
+                        <td>${item.timestamp.toLocaleTimeString('id-ID')} - ${item.timestamp.toLocaleDateString('id-ID')}</td>
+                        <td><strong>${item.bahanBenda}</strong></td>
+                        <td><span class="status-badge ${item.classBadge}">${item.labelKategori}</span></td>
+                        <td>${item.akurasi}</td>
+                    </tr>`;
+            });
+        }
+
+        function gantiFilterRiwayat(f, btn) {
+            filterAktif = f;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderRiwayatTable();
+        }
+
+        function prosesLogout() {
+            if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+            document.getElementById('dashboardPage').style.display = 'none';
+            document.getElementById('authPage').style.display = 'flex';
+            tampilkanForm('login');
+        }
+    </script>
+</body>
+
+</html>
